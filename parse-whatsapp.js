@@ -2,13 +2,34 @@ const fs = require('fs');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 
+// const mensajes = inputText
+//   .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^\:]+: /)
+//   .filter(Boolean);
+
 const mensajes = inputText
-  .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^\:]+: /)
+  .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance)|$))/gs)
+  .map(m => m.trim())
   .filter(Boolean);
 
+
+// const parsePrice = (priceStr) => {
+//   if (!priceStr) return '';
+//   let num = parseFloat(priceStr.replace('$', '').toLowerCase().replace('k', '')) * 1000;
+//   return isNaN(num) ? '' : num.toFixed(0);
+// };
 const parsePrice = (priceStr) => {
   if (!priceStr) return '';
-  let num = parseFloat(priceStr.replace('$', '').toLowerCase().replace('k', '')) * 1000;
+  let num = parseFloat(
+    priceStr
+      .replace(/,/g, '') // 👈 eliminamos separadores de miles
+      .replace('$', '')
+      .toLowerCase()
+      .replace('k', '') // por si viene en formato "23.5k"
+  );
+
+  // Si venía con "k", multiplicamos
+  if (/k/i.test(priceStr)) num *= 1000;
+
   return isNaN(num) ? '' : num.toFixed(0);
 };
 
