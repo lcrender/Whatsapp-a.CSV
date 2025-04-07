@@ -1,13 +1,20 @@
 const fs = require('fs');
+const path = require('path');
+
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
+const exportFolder = path.join(__dirname, 'export');
+
+if (!fs.existsSync(exportFolder)) {
+  fs.mkdirSync(exportFolder, { recursive: true });
+}
 
 // const mensajes = inputText
 //   .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^\:]+: /)
 //   .filter(Boolean);
 
 const mensajes = inputText
-  .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance)|$))/gs)
+  .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag)|$))/gs)
   .map(m => m.trim())
   .filter(Boolean);
 
@@ -168,5 +175,7 @@ const rows = productos.map((p, idx) => {
 }).join('\n');
 
 // Guardar archivo CSV con codificación UTF-8
-fs.writeFileSync(`productos.${fechaHoy}.csv`, "\uFEFF" + header + rows, 'utf8');
+const outputPath = path.join(exportFolder, `productos.${fechaHoy}.csv`);
+fs.writeFileSync(outputPath, "\uFEFF" + header + rows, 'utf8');
+
 console.log(`Archivo productos.${fechaHoy}.csv generado correctamente.`);
