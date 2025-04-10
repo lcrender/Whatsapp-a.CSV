@@ -9,36 +9,30 @@ if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
 }
 
-// const mensajes = inputText
-//   .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^\:]+: /)
-//   .filter(Boolean);
-
 const mensajes = inputText
   .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag)|$))/gs)
   .map(m => m.trim())
   .filter(Boolean);
 
-
-// const parsePrice = (priceStr) => {
-//   if (!priceStr) return '';
-//   let num = parseFloat(priceStr.replace('$', '').toLowerCase().replace('k', '')) * 1000;
-//   return isNaN(num) ? '' : num.toFixed(0);
-// };
 const parsePrice = (priceStr) => {
   if (!priceStr) return '';
-  let num = parseFloat(
-    priceStr
-      .replace(/,/g, '') // 👈 eliminamos separadores de miles
-      .replace('$', '')
-      .toLowerCase()
-      .replace('k', '') // por si viene en formato "23.5k"
-  );
 
-  // Si venía con "k", multiplicamos
-  if (/k/i.test(priceStr)) num *= 1000;
+  // Limpiar y parsear número
+  let clean = priceStr.replace(/,/g, '').replace('$', '').toLowerCase().trim();
+  let hasK = /k/.test(clean);
+  let num = parseFloat(clean.replace('k', ''));
 
-  return isNaN(num) ? '' : num.toFixed(0);
+  // Si es un número válido
+  if (!isNaN(num)) {
+    if (hasK || num < 1000) {
+      num *= 1000;
+    }
+    return num.toFixed(0);
+  }
+
+  return '';
 };
+
 
 const productos = [];
 
