@@ -91,7 +91,7 @@ mensajes.forEach((mensaje, index) => {
 
     // Año (Stamp con años por defecto)
     let año = '';
-    const stampAños = { A: '2017', C: '2018', D: '2019', Y: '2020', Z: '2021', U: '2022', B: '2023', W: '2024', T: '2015', X: '2016' };
+    const stampAños = { T: '2015', X: '2016', A: '2017', C: '2018', D: '2019', Y: '2020', Z: '2021', U: '2022', B: '2023', W: '2024', K: '2016'  };
 
     const añoMatch = texto.match(/Stamp ([A-Z])(?:\/?(\d{2,4}))?/i);
     if (añoMatch) {
