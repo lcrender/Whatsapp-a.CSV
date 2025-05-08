@@ -9,10 +9,15 @@ if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
 }
 
+// const mensajes = inputText
+//   .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag)|$))/gs)
+//   .map(m => m.trim())
+//   .filter(Boolean);
 const mensajes = inputText
-  .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag)|$))/gs)
+  .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^:]+: /)
   .map(m => m.trim())
   .filter(Boolean);
+
 
 const parsePrice = (priceStr) => {
   if (!priceStr) return '';
@@ -113,6 +118,7 @@ mensajes.forEach((mensaje, index) => {
       .replace(materialMatch ? materialMatch[0] : '', '')
       .replace(/Stamp.*$/i, '')
       .replace('(Unused)', '')
+      .replace(/\s*[-–—]*\s*Like New\s*[-–—]*\s*/i, ' ')
       .trim();
 
     descripcion = [modelo, detalles, material, año]
