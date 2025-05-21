@@ -4,6 +4,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
+const letter = "H"
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -13,10 +14,18 @@ if (!fs.existsSync(exportFolder)) {
 //   .split(/(?=(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag).*?(?=\n(?:[BK]\d{2}|KP|Kelly|Birkin|Constance|Herbag)|$))/gs)
 //   .map(m => m.trim())
 //   .filter(Boolean);
+
 const mensajes = inputText
   .split(/\[\d{1,2}:\d{2}, \d{1,2}\/\d{1,2}\/\d{4}\] [^:]+: /)
   .map(m => m.trim())
   .filter(Boolean);
+
+// const mensajes = inputText
+//   .split(/\n(?=(?:Like New - )?(?:KP|K\d{2}|B\d{2}|Birkin \d{2}|Kelly(?: Pochette| Elan| Danse| To Go| 20 Mini| 25| 30)?|Constance(?: To Go)?|K\d{2} Mini|B25|B30|B35)\b)/g)
+//   .map(m => m.trim())
+//   .filter(Boolean);
+
+
 
 
 const parsePrice = (priceStr) => {
@@ -160,7 +169,7 @@ const totalProductos = productos.length;
 
 const rows = productos.map((p, idx) => {
   const numImagen = totalProductos - idx;
-  const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/HermesA${numImagen}.jpg`;
+  const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${numImagen}.jpg`;
 
   return [
     '', 'simple', '', 'Hermès', '1', '0', 'visible',
