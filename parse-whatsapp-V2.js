@@ -3,7 +3,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
-const letter = "B";
+const letter = "C";
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -14,11 +14,24 @@ const mensajes = inputText
   .map(m => m.trim())
   .filter(Boolean);
 
+// Función para dividir un mensaje en posibles productos
 const separarProductos = (mensaje) => {
   return mensaje
     .split(/\n(?=(?:Like New\s*[-–—]*\s*)?(?:KP|K\d{2}|B\d{2}|Birkin \d{2}|Kelly(?: Pochette| Elan| Danse| To Go| 20 Mini| 25| 30)?|Constance(?: To Go)?|K\d{2} Mini|B25|B30|B35)\b)/gi)
     .map(p => p.trim())
     .filter(Boolean);
+};
+
+const parsePrice = (priceStr) => {
+  if (!priceStr) return '';
+  let clean = priceStr.replace(/,/g, '').replace('$', '').toLowerCase().trim();
+  let hasK = /k/.test(clean);
+  let num = parseFloat(clean.replace('k', ''));
+  if (!isNaN(num)) {
+    if (hasK || num < 1000) num *= 1000;
+    return num.toFixed(0);
+  }
+  return '';
 };
 
 const productos = [];
@@ -34,6 +47,8 @@ mensajes.forEach((mensaje, indexMsg) => {
     try {
       const lineas = bloqueProducto.trim().split('\n');
       const texto = lineas[0].replace(/^Like New\s*[-–—]*\s*/i, '').trim();
+      const precioB2B = lineas.find(l => /b2b[:;]/i.test(l));
+      const precioB2C = lineas.find(l => /b2c[:;]/i.test(l));
 
       // Modelo
       let modelo = '';
@@ -77,7 +92,7 @@ mensajes.forEach((mensaje, indexMsg) => {
 
       // Año
       let año = '';
-      const stampAños = { T: '2015', X: '2016', A: '2017', C: '2018', D: '2019', Y: '2020', Z: '2021', U: '2022', B: '2023', W: '2024', K: '2025' };
+      const stampAños = { T: '2015', X: '2016', A: '2017', C: '2018', D: '2019', Y: '2020', Z: '2021', U: '2022', B: '2023', W: '2024', K: '2016' };
       const añoMatch = texto.match(/Stamp ([A-Z])(?:\/?(\d{2,4}))?/i);
       if (añoMatch) {
         const letra = añoMatch[1].toUpperCase();
@@ -103,11 +118,19 @@ mensajes.forEach((mensaje, indexMsg) => {
         .replace(/\s+/g, ' ')
         .trim();
 
-      const ocultoTexto = `<div class="oculto">\n\n\n\nFull set - boutique receipt\n\n\n\nBrand New\n\n\n\n<a href="#" class="whatsapp-button" onclick="openWhatsApp()">Get more info on WhatsApp\n</a>\n\n<script>\nfunction openWhatsApp() {\n  var phoneNumber = "13059429906";\n  var message = "Thank you for contacting FRONT ROW. \\\\nTo assist you personally, please send us this message and we’ll take care of the rest. " + window.location.href;\n  var encodedMessage = encodeURIComponent(message);\n  var whatsappURL = "https://wa.me/" + phoneNumber + "?text=" + encodedMessage;\n  window.open(whatsappURL, "_blank");\n}\n</script>\n\n</div>`;
+      const ocultoTexto = '<div class="oculto">\n\n\n\nFull set - boutique receipt\n\n\n\nBrand New\n\n\n\n</div>';
 
-      descripcion += ocultoTexto;
+      if (/Price Under Request/i.test(bloqueProducto) || (!precioB2B && !precioB2C)) {
+        precio_regular = '';
+        precio_oferta = '';
+        descripcion += '\n\nPrice Under Request\n\n' + ocultoTexto;
+      } else {
+        precio_regular = parsePrice(precioB2C?.split(/[:;]/)[1]?.trim());
+        precio_oferta = parsePrice(precioB2B?.split(/[:;]/)[1]?.trim());
+        descripcion += ocultoTexto;
+      }
 
-      productos.push({ descripcion, precio_regular: '', precio_oferta: '' });
+      productos.push({ descripcion, precio_regular, precio_oferta });
       console.log(`Producto ${indexMsg + 1}-${indexProd + 1} creado OK`);
     } catch (e) {
       console.log(`Producto ${indexMsg + 1}-${indexProd + 1} REVISAR`);
@@ -132,7 +155,8 @@ const rows = productos.map((p, idx) => {
     '', 'simple', '', 'Hermès', '1', '0', 'visible',
     `"${p.descripcion.replace(/"/g, '""')}"`,
     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-    '', '', // Sale price & Regular price vacíos
+    p.precio_oferta,
+    p.precio_regular,
     'Hermès', '', '',
     imagenUrl,
     '', '', '', '', '', '', '', '', '0'
@@ -144,3 +168,4 @@ fs.writeFileSync(outputPath, "\uFEFF" + header + rows, 'utf8');
 
 console.log(`✅ Archivo productos.${fechaHoy}.csv generado correctamente.`);
 console.log(`\n🧾 Total de productos generados: ${productos.length}`);
+
