@@ -3,7 +3,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
-const letter = "B";
+const letter = "E";
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -125,8 +125,21 @@ const fechaHoy = `${String(ahora.getDate()).padStart(2, '0')}.${mesActual}.${añ
 const header = `ID,Type,SKU,Name,Published,Is featured?,Visibility in catalog,Short description,Description,Date sale price starts,Date sale price ends,Tax status,Tax class,In stock?,Stock,Low stock amount,Backorders allowed?,Sold individually?,Weight (kg),Length (cm),Width (cm),Height (cm),Allow customer reviews?,Purchase note,Sale price,Regular price,Categories,Tags,Shipping class,Images,Download limit,Download expiry days,Parent,Grouped products,Upsells,Cross-sells,External URL,Button text,Position\n`;
 
 const totalProductos = productos.length;
+// const rows = productos.map((p, idx) => {
+//   const numImagen = totalProductos - idx;
+//   const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${numImagen}.jpg`;
+//   return [
+//     '', 'simple', '', 'Hermès', '1', '0', 'visible',
+//     `"${p.descripcion.replace(/"/g, '""')}"`,
+//     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+//     '', '', // Sale price & Regular price vacíos
+//     'Hermès', '', '',
+//     imagenUrl,
+//     '', '', '', '', '', '', '', '', '0'
+//   ].join(',');
+// }).join('\n');
 const rows = productos.map((p, idx) => {
-  const numImagen = totalProductos - idx;
+  const numImagen = idx + 1;
   const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${numImagen}.jpg`;
   return [
     '', 'simple', '', 'Hermès', '1', '0', 'visible',
@@ -138,6 +151,7 @@ const rows = productos.map((p, idx) => {
     '', '', '', '', '', '', '', '', '0'
   ].join(',');
 }).join('\n');
+
 
 const outputPath = path.join(exportFolder, `productos.${fechaHoy}.csv`);
 fs.writeFileSync(outputPath, "\uFEFF" + header + rows, 'utf8');
