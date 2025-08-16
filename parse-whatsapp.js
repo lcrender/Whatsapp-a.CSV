@@ -3,7 +3,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
-const letter = "E";
+const letter = "K";
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -33,7 +33,18 @@ mensajes.forEach((mensaje, indexMsg) => {
 
     try {
       const lineas = bloqueProducto.trim().split('\n');
-      const texto = lineas[0].replace(/^Like New\s*[-–—]*\s*/i, '').trim();
+      let texto = lineas[0];
+
+      // Limpieza inicial de texto
+      texto = texto
+        texto = texto
+        .replace(/^(Pristine|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\s*[-–—]*\s*/i, '')
+        .replace(/\b(Pristine|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\b/gi, '')
+        .replace(/\(\s*(Used|Unused|Like New)?\s*\)/gi, '') // Elimina (Used), (Unused), ()...
+        // Elimina fechas como 2023, 2022, 7/2025, 07/2025, etc.
+        .replace(/\b20\d{2}(?:\/\d{1,2})?\b/g, '') 
+        .replace(/\b\d{1,2}\/20\d{2}\b/g, '')
+        .trim();
 
       // Modelo
       let modelo = '';
@@ -75,28 +86,21 @@ mensajes.forEach((mensaje, indexMsg) => {
         }
       }
 
-      // Año
+      // Stamp (solo letra)
       let año = '';
-      const stampAños = { T: '2015', X: '2016', A: '2017', C: '2018', D: '2019', Y: '2020', Z: '2021', U: '2022', B: '2023', W: '2024', K: '2025' };
-      const añoMatch = texto.match(/Stamp ([A-Z])(?:\/?(\d{2,4}))?/i);
+      const añoMatch = texto.match(/Stamp\s+([A-Z])/i);
       if (añoMatch) {
-        const letra = añoMatch[1].toUpperCase();
-        let numAño = añoMatch[2];
-        if (numAño) {
-          numAño = numAño.length === 2 ? `20${numAño}` : numAño;
-        } else {
-          numAño = stampAños[letra] || '';
-        }
-        año = numAño ? `Stamp ${letra} ${numAño}` : `Stamp ${letra}`;
+        año = `Stamp ${añoMatch[1].toUpperCase()}`;
       }
 
       // Detalles
       let detalles = texto
         .replace(modeloMatch ? modeloMatch[0] : '', '')
         .replace(materialMatch ? materialMatch[0] : '', '')
-        .replace(/Stamp.*$/i, '')
+        .replace(/Stamp\s+[A-Z](?:[\/ ]?\d{2,4})?/i, '')
         .trim();
 
+      // Descripción final
       descripcion = [modelo, detalles, material, año]
         .filter(Boolean)
         .join(' ')
@@ -125,19 +129,7 @@ const fechaHoy = `${String(ahora.getDate()).padStart(2, '0')}.${mesActual}.${añ
 const header = `ID,Type,SKU,Name,Published,Is featured?,Visibility in catalog,Short description,Description,Date sale price starts,Date sale price ends,Tax status,Tax class,In stock?,Stock,Low stock amount,Backorders allowed?,Sold individually?,Weight (kg),Length (cm),Width (cm),Height (cm),Allow customer reviews?,Purchase note,Sale price,Regular price,Categories,Tags,Shipping class,Images,Download limit,Download expiry days,Parent,Grouped products,Upsells,Cross-sells,External URL,Button text,Position\n`;
 
 const totalProductos = productos.length;
-// const rows = productos.map((p, idx) => {
-//   const numImagen = totalProductos - idx;
-//   const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${numImagen}.jpg`;
-//   return [
-//     '', 'simple', '', 'Hermès', '1', '0', 'visible',
-//     `"${p.descripcion.replace(/"/g, '""')}"`,
-//     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-//     '', '', // Sale price & Regular price vacíos
-//     'Hermès', '', '',
-//     imagenUrl,
-//     '', '', '', '', '', '', '', '', '0'
-//   ].join(',');
-// }).join('\n');
+
 const rows = productos.map((p, idx) => {
   const numImagen = idx + 1;
   const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${numImagen}.jpg`;
@@ -145,13 +137,12 @@ const rows = productos.map((p, idx) => {
     '', 'simple', '', 'Hermès', '1', '0', 'visible',
     `"${p.descripcion.replace(/"/g, '""')}"`,
     '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-    '', '', // Sale price & Regular price vacíos
+    '', '',
     'Hermès', '', '',
     imagenUrl,
     '', '', '', '', '', '', '', '', '0'
   ].join(',');
 }).join('\n');
-
 
 const outputPath = path.join(exportFolder, `productos.${fechaHoy}.csv`);
 fs.writeFileSync(outputPath, "\uFEFF" + header + rows, 'utf8');
