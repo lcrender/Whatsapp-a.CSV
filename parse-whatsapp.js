@@ -3,7 +3,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
-const letter = "K";
+const letter = "P";
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -37,13 +37,15 @@ mensajes.forEach((mensaje, indexMsg) => {
 
       // Limpieza inicial de texto
       texto = texto
-        texto = texto
-        .replace(/^(Pristine|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\s*[-–—]*\s*/i, '')
-        .replace(/\b(Pristine|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\b/gi, '')
-        .replace(/\(\s*(Used|Unused|Like New)?\s*\)/gi, '') // Elimina (Used), (Unused), ()...
-        // Elimina fechas como 2023, 2022, 7/2025, 07/2025, etc.
-        .replace(/\b20\d{2}(?:\/\d{1,2})?\b/g, '') 
-        .replace(/\b\d{1,2}\/20\d{2}\b/g, '')
+        .replace(/^(Pristine|Preowned|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\s*[-–—]*\s*/i, '')
+        .replace(/\b(Pristine|Preowned|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\b/gi, '')
+        .replace(/\(\s*(Used|Unused|Like New|Preowned)?\s*\)/gi, '') // Elimina (Used), (Unused), (Preowned), ()...
+        // Elimina fechas sueltas (2023, 2024...)
+        .replace(/\b20\d{2}\b/g, '') 
+        // Elimina formatos mes/año (3/2025, 07/2025)
+        .replace(/\b\d{1,2}\/20\d{2}\b/g, '') 
+        // Elimina formatos año/mes (2025/3, 2025/06)
+        .replace(/\b20\d{2}\/\d{1,2}\b/g, '')
         .trim();
 
       // Modelo
@@ -86,18 +88,23 @@ mensajes.forEach((mensaje, indexMsg) => {
         }
       }
 
-      // Stamp (solo letra)
+      // Stamp (letra suelta o con palabra Stamp)
       let año = '';
-      const añoMatch = texto.match(/Stamp\s+([A-Z])/i);
-      if (añoMatch) {
-        año = `Stamp ${añoMatch[1].toUpperCase()}`;
+      let stampMatch = texto.match(/Stamp\s+([A-Z])/i);
+      if (!stampMatch) {
+        // Busca letra suelta tipo "Z" al final o antes de año
+        stampMatch = texto.match(/\b([A-Z])\b(?=\s*(?:20\d{2})?)/i);
+      }
+      if (stampMatch) {
+        año = `Stamp ${stampMatch[1].toUpperCase()}`;
       }
 
       // Detalles
       let detalles = texto
         .replace(modeloMatch ? modeloMatch[0] : '', '')
         .replace(materialMatch ? materialMatch[0] : '', '')
-        .replace(/Stamp\s+[A-Z](?:[\/ ]?\d{2,4})?/i, '')
+        .replace(/\bStamp\s+[A-Z](?:[\/ ]?\d{2,4})?/i, '')
+        .replace(/\b([A-Z])\b(?=\s*(?:20\d{2})?)/i, '')
         .trim();
 
       // Descripción final
@@ -107,7 +114,7 @@ mensajes.forEach((mensaje, indexMsg) => {
         .replace(/\s+/g, ' ')
         .trim();
 
-      const ocultoTexto = `<div class="oculto">\n\n\n\nFull set - boutique receipt\n\n\n\nBrand New\n\n\n\n<a href="#" class="whatsapp-button" onclick="openWhatsApp()">Get more info on WhatsApp\n</a>\n\n<script>\nfunction openWhatsApp() {\n  var phoneNumber = "13059429906";\n  var message = "Thank you for contacting FRONT ROW. \\\\nTo assist you personally, please send us this message and we’ll take care of the rest. " + window.location.href;\n  var encodedMessage = encodeURIComponent(message);\n  var whatsappURL = "https://wa.me/" + phoneNumber + "?text=" + encodedMessage;\n  window.open(whatsappURL, "_blank");\n}\n</script>\n\n</div>`;
+      const ocultoTexto = `<div class="oculto">\n\n\n\nFull set - boutique receipt\n\n\n\nBrand New\n\n\n\n<a href="#" class="whatsapp-button" onclick="openWhatsApp()">Inquire\n</a>\n\n<script>\nfunction openWhatsApp() {\n  var phoneNumber = "13059429906";\n  var message = "Thank you for contacting FRONT ROW. \\\\nTo assist you personally, please send us this message and we’ll take care of the rest. " + window.location.href;\n  var encodedMessage = encodeURIComponent(message);\n  var whatsappURL = "https://wa.me/" + phoneNumber + "?text=" + encodedMessage;\n  window.open(whatsappURL, "_blank");\n}\n</script>\n\n</div>`;
 
       descripcion += ocultoTexto;
 
