@@ -3,7 +3,7 @@ const path = require('path');
 
 const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
 const exportFolder = path.join(__dirname, 'export');
-const letter = "P";
+const letter = "A";
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -37,15 +37,15 @@ mensajes.forEach((mensaje, indexMsg) => {
 
       // Limpieza inicial de texto
       texto = texto
+        // Estados/condición al inicio o en medio
         .replace(/^(Pristine|Preowned|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\s*[-–—]*\s*/i, '')
         .replace(/\b(Pristine|Preowned|Like New|Used|Excellent|Brand New|New|Unused|Mint Condition|UNUSED)\b/gi, '')
-        .replace(/\(\s*(Used|Unused|Like New|Preowned)?\s*\)/gi, '') // Elimina (Used), (Unused), (Preowned), ()...
-        // Elimina fechas sueltas (2023, 2024...)
-        .replace(/\b20\d{2}\b/g, '') 
-        // Elimina formatos mes/año (3/2025, 07/2025)
-        .replace(/\b\d{1,2}\/20\d{2}\b/g, '') 
-        // Elimina formatos año/mes (2025/3, 2025/06)
-        .replace(/\b20\d{2}\/\d{1,2}\b/g, '')
+        // Elimina paréntesis con condición (Used), (Unused), (Preowned), etc.
+        .replace(/\(\s*(Used|Unused|Like New|Preowned)?\s*\)/gi, '')
+        // Elimina cualquier formato de fecha: 2023, 7/2025, 07/2025, 2025/7, 2025/07
+        .replace(/\b(?:\d{1,2}\/20\d{2}|20\d{2}\/\d{1,2}|20\d{2})\b/g, '')
+        // Compacta espacios sobrantes
+        .replace(/\s{2,}/g, ' ')
         .trim();
 
       // Modelo
