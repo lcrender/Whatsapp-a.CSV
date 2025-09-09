@@ -1,10 +1,11 @@
+// stock-miami-export.js
 const fs = require('fs');
 const path = require('path');
 
-// === Config ===
-const inputText = fs.readFileSync('./mensajes.txt', 'utf8');
-const exportFolder = path.join(__dirname, 'export');
-const letter = "C"; // HermesA1.jpg, HermesA2.jpg, ...
+// === Config (MIAMI) ===
+const inputText = fs.readFileSync('./stock-miami.txt', 'utf8');
+const exportFolder = path.join(__dirname, 'export-miami');
+const letter = "A"; // Miami-Stock-Hermes-A1.jpg, Miami-Stock-Hermes-A2.jpg, ...
 
 if (!fs.existsSync(exportFolder)) {
   fs.mkdirSync(exportFolder, { recursive: true });
@@ -25,26 +26,16 @@ const COND_FRASES = [
   'Preowned'
 ];
 
-/**
- * Detecta la condición según reglas:
- * - Si aparece "Unused" (con o sin paréntesis) en cualquier parte ⇒ New (Unused).
- * - Frase exacta (case-insensitive) entre las permitidas.
- * - Si aparece "Excellent" ⇒ Like New Excellent.
- * - Si hay "new" sin "(unused)" ⇒ Brand New.
- * - Si no hay nada ⇒ Brand New (por defecto).
- */
+// --------------------- Detectores ----------------------
+
 function detectarCondicion(raw) {
   const text = raw || '';
 
-  // 0) "Unused" con o sin paréntesis en cualquier parte
   if (/\bunused\b/i.test(text) || /\(\s*unused\s*\)/i.test(text)) {
     return { condicion: 'New (Unused)', origen: 'detectado "Unused"' };
   }
 
-  // 1) Frase exacta (mejor manejo de paréntesis)
-  const condAlternativas = COND_FRASES
-    .map(f => f.replace(/[()]/g, '\\$&'))
-    .join('|');
+  const condAlternativas = COND_FRASES.map(f => f.replace(/[()]/g, '\\$&')).join('|');
   const condRegex = new RegExp(`\\b(${condAlternativas})(?!\\w)`, 'i');
   const matchExacto = text.match(condRegex);
   if (matchExacto) {
@@ -52,12 +43,10 @@ function detectarCondicion(raw) {
     return { condicion: canon, origen: 'frase exacta' };
   }
 
-  // 2) "Excellent" => Like New Excellent
   if (/\bexcellent\b/i.test(text)) {
     return { condicion: 'Like New Excellent', origen: 'normalizado desde "Excellent"' };
   }
 
-  // 3) "new" presente sin "unused" => Brand New
   const newOnly =
     /\bnew\b/i.test(text) &&
     !/\bnew\s*\(\s*unused\s*\)/i.test(text) &&
@@ -66,15 +55,9 @@ function detectarCondicion(raw) {
     return { condicion: 'Brand New', origen: 'normalizado desde "new" sin (Unused)' };
   }
 
-  // 4) Por defecto
   return { condicion: 'Brand New', origen: 'por defecto (no encontrada)' };
 }
 
-/**
- * Detecta el modelo (tag de familia) entre:
- * Birkin, Kelly, Constance, HAC a Dos, Lindy, Bolide
- * Reconoce variantes B##, K##, C##, KP, etc.
- */
 function detectarModelo(raw) {
   const text = raw || '';
 
@@ -89,11 +72,6 @@ function detectarModelo(raw) {
   return { modeloTag: '', origen: 'no detectado' };
 }
 
-/**
- * Detecta "Full set with receipt" o "Full set no receipt".
- * Variantes toleradas: "no receip", "without receipt", "w/o receipt".
- * Si no hay mención => with receipt (por defecto).
- */
 function detectarFullSet(raw) {
   const text = raw || '';
   const noReceipt = /\b(?:no\s+(?:receipt|receip|reciept|recipt)|without\s+receipt|w\/o\s+receipt)\b/i.test(text);
@@ -103,26 +81,27 @@ function detectarFullSet(raw) {
   return { fullSet: 'Full set with receipt', origen: 'por defecto (sin mención de "no receipt")' };
 }
 
-/**
- * Separa los posibles productos dentro de un mismo mensaje.
- * Evita romper Rouge H, maneja encabezados típicos (Birkin/Kelly/etc).
- */
+// --------------------- Separador ----------------------
+
 function separarProductos(mensaje) {
-  return mensaje
-    .split(/\n(?=(?:Like New\s*[-–—]*\s*)?(?:KP|K\d{2}|B\d{2}|Birkin \d{2}|Kelly(?: Pochette| Elan| Danse| To Go| 20 Mini| 25| 30)?|Constance(?: To Go)?|K\d{2} Mini|B25|B30|B35)\b)/gi)
+  const cortes = mensaje
+    .split(/\n(?=(?:Like New\s*[-–—]*\s*)?(?:KP|K\d{2}|B\d{2}|C\d{2}|Birkin(?:\s+HAC\s+\d{2}|\s+\d{2})|Kelly(?:\s+Pochette|\s+Elan|\s+Danse|\s+To\s+Go|\s+20\s+Mini|\s+25|\s+30)?|Constance(?:\s+To\s+Go|\s+18\s+Mini|\s+\d{2})?|Lindy(?:\s+\d{2})?|Bolide(?:\s+on\s+Wheels|\s+Shark\s+Bag\s+Charm|\s+\d{2})?|HAC\s*(?:à|a)\s*Dos|Hac\s*a\s*Dos)\b)/gi)
     .map(p => p.trim())
     .filter(Boolean);
+
+  if (cortes.length > 1) return cortes;
+
+  return mensaje.split('\n').map(l => l.trim()).filter(Boolean);
 }
 
-const productos = [];
+// --------------------- Proceso ----------------------
 
-// Para el resumen por condición
+const productos = [];
 const resumenPorCond = {};
 const ensureCondBucket = (cond) => {
   if (!resumenPorCond[cond]) resumenPorCond[cond] = [];
 };
 
-// === Proceso principal ===
 mensajes.forEach((mensaje, indexMsg) => {
   const productosSeparados = separarProductos(mensaje);
 
@@ -131,28 +110,38 @@ mensajes.forEach((mensaje, indexMsg) => {
       const lineas = bloqueProducto.trim().split('\n');
       let texto = lineas[0] || '';
 
-      // 1) Detectar tags + full set
       const { condicion, origen: origenCond } = detectarCondicion(bloqueProducto);
       const { modeloTag, origen: origenModelo } = detectarModelo(bloqueProducto);
       const { fullSet, origen: origenFullSet } = detectarFullSet(bloqueProducto);
 
-      // 2) Limpieza de texto (sin romper "Rouge H")
+      // --- Limpieza del texto visible ---
       const condRemoveRegex = new RegExp(
-        `\\b(${COND_FRASES.map(f => f.replace(/[()]/g, m => '\\' + m)).join('|')}|Pristine|Used|Excellent|Unused|Mint Condition|UNUSED)\\b`,
+        `\\b(${[
+          ...COND_FRASES,
+          'Brand New',
+          'New',
+          'Like New',
+          'Excellent',
+          'Used',
+          'Pristine',
+          'Mint Condition',
+          'UNUSED'
+        ].map(f => f.replace(/[()]/g, '\\$&')).join('|')})\\b`,
         'gi'
       );
+      const receiptTokens = ['full set','with receipt','w/o receipt','without receipt','no receipt'];
 
       texto = texto
         .replace(condRemoveRegex, '')
-        .replace(/\(\s*(Used|Unused|Like New|Preowned)?\s*\)/gi, '') // (Used) etc.
-        // Quitar fechas tipo 2023, 7/2025, 07/2025, 2025/7, 2025/07, 2025
+        .replace(new RegExp(`\\s*[-–—:|/]*\\s*(?:${receiptTokens.join('|')})\\b`, 'gi'), '')
+        .replace(/\(\s*(Used|Unused|Like New|Preowned|Excellent|New)\s*\)/gi, '')
         .replace(/\b(?:\d{1,2}\/20\d{2}|20\d{2}\/\d{1,2}|20\d{2})\b/g, '')
-        // Si al remover la condición quedó un separador al inicio, eliminarlo
         .replace(/^\s*(?:[-–—:|]\s*)+/, '')
+        .replace(/\s*(?:[-–—:|]\s*)+$/, '')
         .replace(/\s{2,}/g, ' ')
         .trim();
 
-      // 3) Modelo detallado (para descripción)
+      // --- Modelo detallado ---
       let modelo = '';
       const modeloMatch = texto.match(/\b(KP|K\d{1,2}|B\d{1,2}|C\d{1,2}|Birkin \d{1,2}|Kelly \d{1,2}|Kelly Pochette|Constance \d{1,2})\b/i);
       if (modeloMatch) {
@@ -168,7 +157,7 @@ mensajes.forEach((mensaje, indexMsg) => {
         modelo = modelo.split(' ').map(p => p[0] + p.slice(1).toLowerCase()).join(' ');
       }
 
-      // 4) Material (hardware)
+      // --- Material ---
       let material = '';
       const materialMatch = texto.match(/\b(phw|ghw|rghw|bghw|palladium hardware|gold hardware|rose gold hardware|brushed gold hardware)\b/i);
       if (materialMatch) {
@@ -192,7 +181,7 @@ mensajes.forEach((mensaje, indexMsg) => {
         }
       }
 
-      // 5) Stamp
+      // --- Stamp ---
       let stamp = '';
       let stampSource = '';
       const mKeyword = texto.match(/\bStamp\s+([A-Z])\b/i);
@@ -200,7 +189,6 @@ mensajes.forEach((mensaje, indexMsg) => {
         stamp = `Stamp ${mKeyword[1].toUpperCase()}`;
         stampSource = 'palabra Stamp';
       } else {
-        // Solo tomamos letra aislada si está al FINAL (evita borrar "Rouge H")
         const mIsolated = texto.match(/\b([A-Z])\b\s*(?:20\d{2})?\s*$/i);
         if (mIsolated) {
           stamp = `Stamp ${mIsolated[1].toUpperCase()}`;
@@ -208,7 +196,7 @@ mensajes.forEach((mensaje, indexMsg) => {
         }
       }
 
-      // 6) Detalles (remover solo lo detectado)
+      // --- Detalles ---
       let detalles = texto;
       if (modeloMatch) detalles = detalles.replace(modeloMatch[0], '');
       if (materialMatch) detalles = detalles.replace(materialMatch[0], '');
@@ -219,71 +207,35 @@ mensajes.forEach((mensaje, indexMsg) => {
       }
       detalles = detalles.replace(/\s{2,}/g, ' ').trim();
 
-      // 7) Tags (condición + modelo si hay)
+      // --- Tags ---
       const tags = [condicion, modeloTag].filter(Boolean).join(', ');
 
-      // 8) Bloque oculto con full set y condición dinámicos
-      const ocultoTexto = `<div class="oculto">\n\n\n\n${fullSet}\n\n\n\n${condicion}\n\n\n\n<a href="#" class="whatsapp-button" onclick="openWhatsApp()">Inquire\n</a>\n\n<script>\nfunction openWhatsApp() {\n  var phoneNumber = "13059429906";\n  var message = "Thank you for contacting FRONT ROW. \\\\nTo assist you personally, please send us this message and we’ll take care of the rest. " + window.location.href;\n  var encodedMessage = encodeURIComponent(message);\n  var whatsappURL = "https://wa.me/" + phoneNumber + "?text=" + encodedMessage;\n  window.open(whatsappURL, "_blank");\n}\n</script>\n\n</div>`;
+      // --- Bloque oculto ---
+      const ocultoTexto = `<div class="oculto">\n\n${fullSet}\n\n${condicion}\n\n<a href="#" class="whatsapp-button" onclick="openWhatsApp()">Inquire</a>\n<script>\nfunction openWhatsApp() {\n  var phoneNumber = "13059429906";\n  var message = "Thank you for contacting FRONT ROW. \\\\nTo assist you personally, please send us this message and we’ll take care of the rest. " + window.location.href;\n  var encodedMessage = encodeURIComponent(message);\n  var whatsappURL = "https://wa.me/" + phoneNumber + "?text=" + encodedMessage;\n  window.open(whatsappURL, "_blank");\n}\n</script>\n</div>`;
 
-      const descripcion =
-        [modelo, detalles, material, stamp].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
-        + ocultoTexto;
+      const descripcion = [modelo, detalles, material, stamp].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim() + ocultoTexto;
 
-      // ID correlativo de producto (coincide con orden de CSV)
       const idProducto = productos.length + 1;
-
       productos.push({ id: idProducto, descripcion, tags, condicion });
 
-      // Guardar para resumen por condición
       ensureCondBucket(condicion);
       resumenPorCond[condicion].push(idProducto);
 
-      // 9) Logs de indicadores por producto
-      console.log(`Producto ${indexMsg + 1}-${indexProd + 1} creado OK`);
-      console.log(`  - Nº de producto: ${idProducto}`);
-      console.log(`  - Condición: ${condicion} (${origenCond})`);
-      console.log(`  - Modelo: ${modeloTag || 'N/D'} (${origenModelo})`);
-      console.log(`  - Full set: ${fullSet} (${origenFullSet})`);
-      if (stamp) console.log(`  - ${stamp} (origen: ${stampSource})`);
-      console.log(`  - Categoría: Hermès | Tags: [${tags}]`);
-      console.log('\n' + '-'.repeat(60) + '\n');
     } catch (e) {
-      console.log(`Producto ${indexMsg + 1}-${indexProd + 1} REVISAR (${e.message})`);
-      console.log('\n' + '-'.repeat(60) + '\n');
+      console.log(`(MIAMI) Producto ${indexMsg + 1}-${indexProd + 1} REVISAR (${e.message})`);
     }
   });
 });
 
-// === Resumen por condición (al finalizar productos) ===
-const condicionesPresentes = Object.keys(resumenPorCond);
-if (condicionesPresentes.length) {
-  console.log('-'.repeat(60));
-  console.log('RESUMEN POR CONDICIÓN (número de producto)');
-  // Priorizar orden canónico y luego cualquier otro que aparezca
-  COND_FRASES.forEach(cond => {
-    if (resumenPorCond[cond]?.length) {
-      console.log(`  - ${cond}: ${resumenPorCond[cond].join(', ')}  (Total: ${resumenPorCond[cond].length})`);
-    }
-  });
-  condicionesPresentes
-    .filter(c => !COND_FRASES.includes(c))
-    .forEach(cond => {
-      console.log(`  - ${cond}: ${resumenPorCond[cond].join(', ')}  (Total: ${resumenPorCond[cond].length})`);
-    });
-  console.log('-'.repeat(60) + '\n');
-} else {
-  console.log('-'.repeat(60));
-  console.log('RESUMEN POR CONDICIÓN: no se detectaron productos.');
-  console.log('-'.repeat(60) + '\n');
-}
+// --------------------- CSV ----------------------
 
-// === Generación CSV ===
 const ahora = new Date();
 const añoActual = ahora.getFullYear();
 const mesActual = String(ahora.getMonth() + 1).padStart(2, '0');
 const fechaHoy = `${String(ahora.getDate()).padStart(2, '0')}.${mesActual}.${añoActual}`;
 
-// Cabecera CSV WooCommerce
+const baseUploadsURL = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/`;
+
 const header =
   `ID,Type,SKU,Name,Published,Is featured?,Visibility in catalog,Short description,Description,` +
   `Date sale price starts,Date sale price ends,Tax status,Tax class,In stock?,Stock,Low stock amount,` +
@@ -292,12 +244,14 @@ const header =
   `Download limit,Download expiry days,Parent,Grouped products,Upsells,Cross-sells,External URL,Button text,Position\n`;
 
 const rows = productos.map((p) => {
-  const imagenUrl = `https://frontrowco.com/wp-content/uploads/${añoActual}/${mesActual}/Hermes${letter}${p.id}.jpg`;
+  const imageName = `Miami-Stock-Hermes-${letter}${p.id}.jpg`;
+  const imagenUrl = baseUploadsURL + imageName;
+
   return [
     '',                 // ID
     'simple',           // Type
     '',                 // SKU
-    'Hermès',           // Name (fijo)
+    'Hermès',           // Name
     '1',                // Published
     '0',                // Is featured?
     'visible',          // Visibility in catalog
@@ -310,8 +264,8 @@ const rows = productos.map((p) => {
     '', '', '', '',     // Weight/Length/Width/Height
     '', '',             // Allow reviews?, Purchase note
     '', '',             // Sale price, Regular price
-    'Hermès',           // Categories (fijo)
-    `"${p.tags.replace(/"/g, '""')}"`, // Tags (solo acá)
+    'miami',            // Categories
+    `"${p.tags.replace(/"/g, '""')}"`, // Tags
     '',                 // Shipping class
     imagenUrl,          // Images
     '', '', '', '', '', '', '', '', '0'
@@ -319,9 +273,8 @@ const rows = productos.map((p) => {
 }).join('\n');
 
 if (!fs.existsSync(exportFolder)) fs.mkdirSync(exportFolder, { recursive: true });
-const outputPath = path.join(exportFolder, `productos.${fechaHoy}.csv`);
+const outputPath = path.join(exportFolder, `productos.miami.${fechaHoy}.csv`);
 fs.writeFileSync(outputPath, "\uFEFF" + header + rows, 'utf8');
 
-// Logs finales
-console.log(`✅ Archivo productos.${fechaHoy}.csv generado correctamente.`);
-console.log(`🧾 Total de productos generados: ${productos.length}`);
+console.log(`✅ (MIAMI) Archivo productos.miami.${fechaHoy}.csv generado correctamente.`);
+console.log(`🧾 (MIAMI) Total de productos generados: ${productos.length}`);
